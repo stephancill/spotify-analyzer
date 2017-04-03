@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Hello</title>
+    </head>
+    <body>
+        <h1>Songs</h1><span>(</span><span id="totalLookedUp">0</span><span>/</span><span id="totalSongs"></span><span>)</span>
+        <span>(ETA: </span><span id="eta"></span><span> seconds)</span>
+        <div id="songs" class="">
+
+        </div>
+    </body>
+</html>
+<script type="text/javascript">
+
+var spotify_client_id = '04ec33bc2f0544b4b06c9c78c251ff07'; // Your client id
+var spotify_client_secret = '595fe83b487d4924baef110f240d129b'; // Your secret
+var redirect_uri = 'http://localhost:8008/callback'; // Your redirect uri
+
+var access_token = null
+var refresh_token = null
+
+var lastfm_api_key = "b25b959554ed76058ac220b7b2e0a026"
+
+var songs = []
+var requestedSongs = []
+var lastFMProcessIndex = 0
+var timer = null
+
+var genreDemographics = {}
+
+authenticate(spotify_client_id, spotify_client_secret, redirect_uri, populateSongs)
+
+function recursiveGet(responseData, endpoint, request, requestsMade, limit, maxRequests=null, callback=()=>{}) {
+    if (maxRequests !== null) {
+        if (requestsMade > maxRequests) {
+            callback()
+            return
+        }
+    }
+    if (!(responseData.items.length < limit)) {
+        fetch(endpoint + `?limit=${limit}&offset=${requestsMade * limit}`, request)
+        .then((blob) => blob.json())
+        .then((data) => {
+            songs.push(...data.items)
+            createSongElements(data.items)
+            recursiveGet(data, endpoint, request, requestsMade+1, limit, maxRequests, callback)
+        })
+    } else {
+        callback()
+    }
+}
+
+function populateSongs(access_token) {
+    var endpoint = "https://api.spotify.com/v1/me/tracks"
+
+    var headers = new Headers()
+    headers.append('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')
+    headers.append('Authorization', "Bearer " + access_token)
+
+    var request = { method: 'GET',
+                   headers: headers,
+                   mode: 'cors',
+                   cache: 'default' }
+
+    var requestsMade = 0
+    var limit = 50
+
+    fetch(endpoint + `?limit=${limit}&offset=${requestsMade * limit}`, request)
+    .then((blob) => blob.json())
+    .then((data) => {
+        data.items.map(item => {
+            songs.push({title: item.track.name, artist: item.track.artists[0].name})
+        })
+        getTagsForSongs()
+        createSongElements(data.items)
+        recursiveGet(data, endpoint, request, requestsMade+1, limit, 0)
+    })
+}
+
+function getTagsForSongs() {
+    console.warn("Getting tags");
+    timer = setInterval(getSongTags, 200)
+}
+
+function getSongTags() {
+
+    if (lastFMProcessIndex < songs.length) {
+        var title = songs[lastFMProcessIndex].title
+        var artist = songs[lastFMProcessIndex].artist
+// method=track.getInfo&api_key=b25b959554ed76058ac220b7b2e0a026&artist=cher&track=believe&format=json
+        var endpoint = `http://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=${lastfm_api_key}`
+        var params = `&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}`
+        var appendix = "&user=RJ&format=json"
+        // console.log(title, artist);
+        fetch(endpoint + params + appendix)
+        .then(blob => blob.json())
+        .then(data => {
+            tags =  data.track.toptags.tag
+            tags.map(tag => {
+                item = tag.name
+                if (lastFMProcessIndex < songs.length) {
+                    if (genreDemographics[item]) {
+                        genreDemographics[item]["count"] += 1
+                        genreDemographics[item]["tracks"].push(songs[lastFMProcessIndex])
+                    } else {
+                        genreDemographics[item] = {}
+                        genreDemographics[item]["count"] = 1
+                        genreDemographics[item]["tracks"] = [songs[lastFMProcessIndex]]
+                    }
+                }
+            })
+            requestedSongs.push({title: title, artist: artist, tags: tags})
+            document.getElementById("totalLookedUp").innerHTML = lastFMProcessIndex
+            document.getElementById("eta").innerHTML = 200 * (songs.length - lastFMProcessIndex) / 1000
+        })
+        lastFMProcessIndex += 1
+    } else {
+        console.log("clearing");
+        window.clearInterval(timer)
+        analyzeSongs()
+    }
+
+}
+
+function analyzeSongs() {
+    console.log("Analyzing");
+    // console.log(genreDemographics);
+    var keysSorted = Object.keys(genreDemographics).sort(function(b,a){return genreDemographics[a].count-genreDemographics[b].count})
+    var tabulated = []
+    for (var i = 0; i < keysSorted.length; i++) {
+        tabulated.push([keysSorted[i], genreDemographics[keysSorted[i]]["count"], genreDemographics[keysSorted[i]["tracks"]]])
+    }
+    console.table(tabulated)
+}
+
+function createSongElements(tracks) {
+    var container = document.getElementById("songs")
+    var html = ""
+    tracks.map(track => {
+        html += `<span>${track.track.name} - ${track.track.artists[0].name}</span><br>`
+    })
+    container.innerHTML += html
+    document.getElementById("totalSongs").innerHTML = songs.length
+}
+
+function authenticate(spotify_client_id, spotify_client_secret, redirect_uri, callback) {
+    var access_token = null
+    var refresh_token = null
+
+    function b64EncodeUnicode(str) {
+        return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
+            return String.fromCharCode('0x' + p1)
+        }));
+    }
+
+    function httpGetAsync(theUrl, params, callback)
+    {
+        var xmlHttp = new XMLHttpRequest()
+        xmlHttp.onreadystatechange = function() {
+            if (xmlHttp.readyState == 4 && xmlHttp.status == 200) {
+                callback(xmlHttp.responseText, xmlHttp.status)
+            }
+        }
+        xmlHttp.open("POST", theUrl, true); // true for asynchronous
+        xmlHttp.setRequestHeader("Authorization", "Basic " + b64EncodeUnicode(`${spotify_client_id}:${spotify_client_secret}`))
+        xmlHttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8")
+        xmlHttp.send(params)
+    }
+
+    function gup(name, url) {
+        if (!url) url = location.href;
+        name = name.replace(/[\[]/,"\\\[").replace(/[\]]/,"\\\]")
+        var regexS = "[\\?&]"+name+"=([^&#]*)"
+        var regex = new RegExp( regexS )
+        var results = regex.exec( url )
+        return results == null ? null : results[1]
+    }
+
+    if (!(gup("error"))) {
+        // console.log(gup("code"));
+        httpGetAsync("https://accounts.spotify.com/api/token", `grant_type=authorization_code&code=${gup("code")}&redirect_uri=${encodeURIComponent(redirect_uri)}`, (responseText) => {
+            var json = JSON.parse(responseText)
+            access_token = json.access_token
+            refresh_token = json.refresh_token
+            callback(access_token, refresh_token)
+        })
+    } else {
+        console.error("Error");
+    }
+}
+
+</script>
