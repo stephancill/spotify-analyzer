@@ -7,6 +7,8 @@
     <body>
         <h1>Songs</h1><span>(</span><span id="totalLookedUp">0</span><span>/</span><span id="totalSongs"></span><span>)</span>
         <span>(ETA: </span><span id="eta"></span><span> seconds)</span>
+        <br>
+        <span>Current: </span><span id="current"></span>
         <div id="songs" class="">
 
         </div>
@@ -17,7 +19,7 @@
 var spotify_client_id = '04ec33bc2f0544b4b06c9c78c251ff07'; // Your client id (meh)
 var spotify_client_secret = '595fe83b487d4924baef110f240d129b'; // Your secret (meh)
 // var redirect_uri = 'http://localhost:8008/callback'; // Your redirect uri
-var redirect_uri = location.origin + '/callback'
+var redirect_uri = (location.origin == "http://localhost:8008" ? location.origin+'/callback' : location.origin.location.pathname + "/callback")
 var auth_url = `https://accounts.spotify.com/authorize/?client_id=${spotify_client_id}&response_type=code&redirect_uri=${encodeURIComponent(redirect_uri)}&scope=user-library-read`
 
 var access_token = null
@@ -87,7 +89,7 @@ function populateSongs(access_token) {
 
 function getTagsForSongs() {
     console.warn("Getting tags");
-    timer = setInterval(getSongTags, 200)
+    timer = setInterval(getSongTags, 200) // Last.fm limits requests to 5 per second per IP
 }
 
 function getSongTags() {
@@ -120,6 +122,10 @@ function getSongTags() {
             requestedSongs.push({title: title, artist: artist, tags: tags})
             document.getElementById("totalLookedUp").innerHTML = lastFMProcessIndex
             document.getElementById("eta").innerHTML = 200 * (songs.length - lastFMProcessIndex) / 1000
+            var tags = ((tags.length === 0) ? "" : tags.reduce((acc, tag) => {
+                return (acc + "" === "[object Object]" ? "" : acc) + tag.name + ","
+            }))
+            document.getElementById("current").innerHTML = title + " - " + artist + "[" + tags + "]"
         })
         lastFMProcessIndex += 1
     } else {
@@ -136,7 +142,8 @@ function analyzeSongs() {
     var keysSorted = Object.keys(genreDemographics).sort(function(b,a){return genreDemographics[a].count-genreDemographics[b].count})
     var tabulated = []
     for (var i = 0; i < keysSorted.length; i++) {
-        tabulated.push([keysSorted[i], genreDemographics[keysSorted[i]]["count"], genreDemographics[keysSorted[i]["tracks"]]])
+        console.log(genreDemographics[keysSorted[i]].tracks);
+        tabulated.push([keysSorted[i], genreDemographics[keysSorted[i]].count, genreDemographics[keysSorted[i]].tracks])
     }
     console.table(tabulated)
 }
