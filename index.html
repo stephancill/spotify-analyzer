@@ -5,12 +5,14 @@
         <title>Hello</title>
     </head>
     <body>
-        <h1>Songs</h1><span>(</span><span id="totalLookedUp">0</span><span>/</span><span id="totalSongs"></span><span>)</span>
+        <h1>Spotify Library Analyzer</h1>
+        <h2 id="fetchStatus">Fetching/parsing songs...</h2>
+        <span>(</span><span id="totalLookedUp">0</span><span>/</span><span id="totalSongs">?</span><span>)</span>
         <span>(ETA: </span><span id="eta"></span><span> seconds)</span>
         <br>
         <span>Current: </span><span id="current"></span>
-        <div id="songs" class="">
-
+        <div id="charts" class="">
+            <canvas id="myChart" width="400" height="400"></canvas>
         </div>
     </body>
 </html>
@@ -122,15 +124,16 @@ function getSongTags() {
             requestedSongs.push({title: title, artist: artist, tags: tags})
             document.getElementById("totalLookedUp").innerHTML = lastFMProcessIndex
             document.getElementById("eta").innerHTML = 200 * (songs.length - lastFMProcessIndex) / 1000
-            var tags = ((tags.length === 0) ? "" : tags.reduce((acc, tag) => {
-                return (acc + "" === "[object Object]" ? "" : acc) + tag.name + ","
-            }))
-            document.getElementById("current").innerHTML = title + " - " + artist + "[" + tags + "]"
+            // var tags = ((tags.length === 0) ? "" : tags.reduce((acc, tag) => {
+            //     return (acc + "" === "[object Object]" ? "" : acc) + tag.name + ","
+            // }))
+            document.getElementById("current").innerHTML = title + " - " + artist
         })
         lastFMProcessIndex += 1
     } else {
         console.log("clearing");
         window.clearInterval(timer)
+        document.getElementById("fetchStatus").innerHTML = "Done fetching songs."
         analyzeSongs()
     }
 
@@ -142,10 +145,58 @@ function analyzeSongs() {
     var keysSorted = Object.keys(genreDemographics).sort(function(b,a){return genreDemographics[a].count-genreDemographics[b].count})
     var tabulated = []
     for (var i = 0; i < keysSorted.length; i++) {
-        console.log(genreDemographics[keysSorted[i]].tracks);
+        // console.log(genreDemographics[keysSorted[i]].tracks);
         tabulated.push([keysSorted[i], genreDemographics[keysSorted[i]].count, genreDemographics[keysSorted[i]].tracks])
     }
     console.table(tabulated)
+
+    // Charts
+    var labels = []
+    var data = []
+    for (var i = 0; i < 7; i++) {
+        labels.push(tabulated[i][0])
+        data.push(tabulated[i][1])
+        console.log();
+        console.log(tabulated[i][0], tabulated[i][1]);
+    }
+    console.log(labels);
+    var ctx = document.getElementById("myChart");
+    var myChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '# of songs',
+                data: data,
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.2)',
+                    'rgba(54, 162, 235, 0.2)',
+                    'rgba(255, 206, 86, 0.2)',
+                    'rgba(75, 192, 192, 0.2)',
+                    'rgba(153, 102, 255, 0.2)',
+                    'rgba(255, 159, 64, 0.2)'
+                ],
+                borderColor: [
+                    'rgba(255,99,132,1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(153, 102, 255, 1)',
+                    'rgba(255, 159, 64, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        beginAtZero:true
+                    }
+                }]
+            }
+        }
+    })
 }
 
 function createSongElements(tracks) {
@@ -205,3 +256,4 @@ function authenticate(spotify_client_id, spotify_client_secret, redirect_uri, ca
 }
 
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.js" charset="utf-8"></script>
