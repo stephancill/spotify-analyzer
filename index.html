@@ -34,6 +34,8 @@ var timer = null
 
 var genreDemographics = {}
 
+var totalTime = 0
+
 if (location.pathname === "/callback") {
     authenticate(spotify_client_id, spotify_client_secret, redirect_uri, populateSongs)
 } else {
@@ -61,6 +63,8 @@ function recursiveGet(responseData, endpoint, request, requestsMade, limit, maxR
 }
 
 function populateSongs(access_token) {
+    totalTime = new Date()
+
     var endpoint = "https://api.spotify.com/v1/me/tracks"
 
     var headers = new Headers()
@@ -102,32 +106,66 @@ function getSongTags() {
         var params = `&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}`
         var appendix = "&user=RJ&format=json"
         // console.log(title, artist);
-        fetch(endpoint + params + appendix)
-        .then(blob => blob.json())
-        .then(data => {
-            tags =  data.track.toptags.tag
+        lastFMProcessIndex += 1
+        var cookie = getCookie(title+artist)
+        if (cookie != "") {
+            var tags = JSON.parse(cookie)
+            var index = lastFMProcessIndex - 1
+            console.warn("found cookie");
             tags.map(tag => {
                 item = tag.name
                 if (lastFMProcessIndex < songs.length) {
                     if (genreDemographics[item]) {
                         genreDemographics[item]["count"] += 1
-                        genreDemographics[item]["tracks"].push(songs[lastFMProcessIndex])
+                        genreDemographics[item]["tracks"].push(songs[index])
                     } else {
                         genreDemographics[item] = {}
                         genreDemographics[item]["count"] = 1
-                        genreDemographics[item]["tracks"] = [songs[lastFMProcessIndex]]
+                        genreDemographics[item]["tracks"] = [songs[index]]
                     }
                 }
             })
             requestedSongs.push({title: title, artist: artist, tags: tags})
             document.getElementById("totalLookedUp").innerHTML = lastFMProcessIndex
             document.getElementById("eta").innerHTML = 200 * (songs.length - lastFMProcessIndex) / 1000
-            var tags = ((tags.length === 0) ? "" : tags.reduce((acc, tag) => {
+            // console.log(JSON.parse(cookie).split(",").splice(0, JSON.parse(cookie).split(",").length-2));
+            tags = ((tags.length === 0) ? "" : tags.reduce((acc, tag) => {
                 return (acc + "" === "[object Object]" ? "" : acc) + tag.name + ","
             }))
             document.getElementById("current").innerHTML = title + " - " + artist + "[" + tags + "]"
-        })
-        lastFMProcessIndex += 1
+        } else {
+            console.log("network");
+            fetch(endpoint + params + appendix)
+            .then(blob => blob.json())
+            .then(data => {
+                var index = lastFMProcessIndex - 1
+                tags =  data.track.toptags.tag
+                tags.map(tag => {
+                    item = tag.name
+                    if (lastFMProcessIndex < songs.length) {
+                        if (genreDemographics[item]) {
+                            genreDemographics[item]["count"] += 1
+                            genreDemographics[item]["tracks"].push(songs[index])
+                        } else {
+                            genreDemographics[item] = {}
+                            genreDemographics[item]["count"] = 1
+                            genreDemographics[item]["tracks"] = [songs[index]]
+                        }
+                    }
+                })
+                setCookie(title+artist, JSON.stringify(tags), 365)
+                console.warn("set cookie", JSON.stringify(tags));
+                requestedSongs.push({title: title, artist: artist, tags: tags})
+                document.getElementById("totalLookedUp").innerHTML = lastFMProcessIndex
+                document.getElementById("eta").innerHTML = 200 * (songs.length - lastFMProcessIndex) / 1000
+                var tags = ((tags.length === 0) ? "" : tags.reduce((acc, tag) => {
+                    return (acc + "" === "[object Object]" ? "" : acc) + tag.name + ","
+                }))
+                document.getElementById("current").innerHTML = title + " - " + artist + "[" + tags + "]"
+            })
+        }
+
+
     } else {
         console.log("clearing");
         window.clearInterval(timer)
@@ -146,6 +184,7 @@ function analyzeSongs() {
         tabulated.push([keysSorted[i], genreDemographics[keysSorted[i]].count, genreDemographics[keysSorted[i]].tracks])
     }
     console.table(tabulated)
+    console.warn(new Date() - totalTime);
 }
 
 function createSongElements(tracks) {
@@ -202,6 +241,29 @@ function authenticate(spotify_client_id, spotify_client_secret, redirect_uri, ca
     } else {
         console.error("Error");
     }
+}
+
+// COOKIES
+function setCookie(cname, cvalue, exdays) {
+    var d = new Date();
+    d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
+    var expires = "expires="+d.toUTCString();
+    document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+}
+
+function getCookie(cname) {
+    var name = cname + "=";
+    var ca = document.cookie.split(';');
+    for(var i = 0; i < ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ') {
+            c = c.substring(1);
+        }
+        if (c.indexOf(name) == 0) {
+            return c.substring(name.length, c.length);
+        }
+    }
+    return "";
 }
 
 </script>
