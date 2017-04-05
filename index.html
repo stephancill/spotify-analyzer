@@ -34,8 +34,8 @@ var genreDemographics = {}
 
 if (location.pathname === "/callback") {
     authenticate(spotify_client_id, spotify_client_secret, redirect_uri, populateSongs)
-} else if (location.pathname === "/") {
-    location.location.replace(auth_url)
+} else {
+    location.replace(auth_url)
 }
 
 function recursiveGet(responseData, endpoint, request, requestsMade, limit, maxRequests=null, callback=()=>{}) {
@@ -142,12 +142,12 @@ function analyzeSongs() {
 }
 
 function createSongElements(tracks) {
-    var container = document.getElementById("songs")
-    var html = ""
-    tracks.map(track => {
-        html += `<span>${track.track.name} - ${track.track.artists[0].name}</span><br>`
-    })
-    container.innerHTML += html
+    // var container = document.getElementById("songs")
+    // var html = ""
+    // tracks.map(track => {
+    //     html += `<span>${track.track.name} - ${track.track.artists[0].name}</span><br>`
+    // })
+    // container.innerHTML += html
     document.getElementById("totalSongs").innerHTML = songs.length
 }
 
