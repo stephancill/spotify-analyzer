@@ -24,7 +24,7 @@ var spotify_client_id = '04ec33bc2f0544b4b06c9c78c251ff07'; // Your client id (m
 var spotify_client_secret = '595fe83b487d4924baef110f240d129b'; // Your secret (meh)
 var redirect_uri = (location.origin == "http://localhost:8008" ? location.origin+'/callback' : location.origin+location.pathname)
 var auth_url = `https://accounts.spotify.com/authorize/?client_id=${spotify_client_id}&response_type=code&redirect_uri=${encodeURIComponent(redirect_uri)}&scope=user-library-read`
-
+console.log(location.origin+location.pathname);
 var access_token = null
 var refresh_token = null
 
