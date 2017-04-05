@@ -11,8 +11,8 @@
         <span>(ETA: </span><span id="eta"></span><span> seconds)</span>
         <br>
         <span>Current: </span><span id="current"></span>
-        <div id="charts" class="">
-            <canvas id="myChart" width="400" height="400"></canvas>
+        <div id="charts" style="visibility: hidden">
+            <canvas id="myChart" width="500" height="500"></canvas>
         </div>
     </body>
 </html>
@@ -35,6 +35,7 @@ var lastFMProcessIndex = 0
 var timer = null
 
 var genreDemographics = {}
+var chartsCreated = false
 
 if (location.pathname === "/callback") {
     authenticate(spotify_client_id, spotify_client_secret, redirect_uri, populateSongs)
@@ -53,8 +54,11 @@ function recursiveGet(responseData, endpoint, request, requestsMade, limit, maxR
         fetch(endpoint + `?limit=${limit}&offset=${requestsMade * limit}`, request)
         .then((blob) => blob.json())
         .then((data) => {
-            songs.push(...data.items)
+            data.items.map(item => {
+                songs.push({title: item.track.name, artist: item.track.artists[0].name})
+            })
             createSongElements(data.items)
+            // recursiveGet(data, endpoint, request, requestsMade+1, limit, 2)
             recursiveGet(data, endpoint, request, requestsMade+1, limit, maxRequests, callback)
         })
     } else {
@@ -85,17 +89,17 @@ function populateSongs(access_token) {
         })
         getTagsForSongs()
         createSongElements(data.items)
-        recursiveGet(data, endpoint, request, requestsMade+1, limit, 0)
+        recursiveGet(data, endpoint, request, requestsMade+1, limit, 1)
     })
 }
 
 function getTagsForSongs() {
     console.warn("Getting tags");
-    timer = setInterval(getSongTags, 200) // Last.fm limits requests to 5 per second per IP
+    timer = window.setInterval(getSongTags, 200) // Last.fm limits requests to 5 per second per IP
 }
 
 function getSongTags() {
-
+    console.log(timer);
     if (lastFMProcessIndex < songs.length) {
         var title = songs[lastFMProcessIndex].title
         var artist = songs[lastFMProcessIndex].artist
@@ -130,11 +134,13 @@ function getSongTags() {
             document.getElementById("current").innerHTML = title + " - " + artist
         })
         lastFMProcessIndex += 1
-    } else {
+    } else if (!chartsCreated){
         console.log("clearing");
         window.clearInterval(timer)
+        console.log(timer);
         document.getElementById("fetchStatus").innerHTML = "Done fetching songs."
         analyzeSongs()
+        chartsCreated = true
     }
 
 }
@@ -149,17 +155,15 @@ function analyzeSongs() {
         tabulated.push([keysSorted[i], genreDemographics[keysSorted[i]].count, genreDemographics[keysSorted[i]].tracks])
     }
     console.table(tabulated)
-
+    document.getElementById("charts").style.visibility = "visible"
     // Charts
     var labels = []
     var data = []
     for (var i = 0; i < 7; i++) {
         labels.push(tabulated[i][0])
         data.push(tabulated[i][1])
-        console.log();
-        console.log(tabulated[i][0], tabulated[i][1]);
     }
-    console.log(labels);
+    Chart.defaults.global.responsive = false
     var ctx = document.getElementById("myChart");
     var myChart = new Chart(ctx, {
         type: "bar",
@@ -197,6 +201,7 @@ function analyzeSongs() {
             }
         }
     })
+    // console.log(ctx.toDataURL());
 }
 
 function createSongElements(tracks) {
