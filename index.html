@@ -22,7 +22,6 @@
 console.log("v0.1.4");
 
 var spotify_client_id = '04ec33bc2f0544b4b06c9c78c251ff07'; // Your client id (meh)
-var spotify_client_secret = '595fe83b487d4924baef110f240d129b'; // Your secret (meh)
 var redirect_uri = (location.origin == "http://localhost:8008" ? location.origin+'/callback' : location.origin+location.pathname)
 var auth_url = `https://accounts.spotify.com/authorize?client_id=${spotify_client_id}&response_type=token&redirect_uri=${encodeURIComponent(redirect_uri)}&scope=user-library-read`
 
@@ -40,13 +39,13 @@ var genreDemographics = {}
 var chartsCreated = false
 
 if (location.pathname === "/callback" || location.search != "") {
-    authenticate(spotify_client_id, spotify_client_secret, redirect_uri, populateSongs)
+    authenticate(spotify_client_id redirect_uri, populateSongs)
     window.history.pushState('page2', 'Title', '/');
 } else {
     location.replace(auth_url)
 }
 
-function authenticate(spotify_client_id, spotify_client_secret, redirect_uri, callback) {
+function authenticate(spotify_client_id, redirect_uri, callback) {
     var access_token = null
     function gup(name, url) {
         if (!url) url = location.href;
