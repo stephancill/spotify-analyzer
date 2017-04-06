@@ -15,10 +15,9 @@
             <h2>Select source:</h2>
             <div id="sourceSelectContainer">
                 <select id="sourceSelect" disabled="true" class="" name="">
+                    <option id="userLibrary">My library</option>
+                    <optgroup id="userPlaylists" label="Playlists" ></optgroup>
                     <option value="https://api.spotify.com/v1/me">My library</option>
-                    <optgroup id="userPlaylists" label="Playlists" >
-
-                    </optgroup>
                 </select>
                 <br>
                 <button id="confirmSource" disabled="true" style="margin-top:20px" type="button">Proceed</button>
@@ -58,7 +57,7 @@
 </html>
 <script type="text/javascript">
 
-var version = "v0.2.3"
+var version = "v0.2.4"
 console.log(version);
 document.getElementById("version").innerHTML = version
 
@@ -101,6 +100,7 @@ if (location.hash != "") {
 function ready() {
     console.log("ready");
 
+
     // Set generic request headers
     var headers = new Headers()
     headers.append('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')
@@ -120,6 +120,7 @@ function ready() {
     .then((blob) => blob.json())
     .then((data) => {
         spotify_client_id = data.id
+        document.getElementById("userLibrary").value = JSON.stringify({href: "https://api.spotify.com/v1/me", title: "saved tracks", owner: spotify_client_id})
         getPlaylists()
     })
 
@@ -155,6 +156,10 @@ function ready() {
                     if (currentPlaylist != endpoint) {
                         populateSongs(endpoint)
                     }
+                })
+                document.getElementById("sourceSelect").addEventListener("change", ()=> {
+                    console.log(this);
+                    // add listener to check if "Playlist URL" option is selected
                 })
             })
         })
