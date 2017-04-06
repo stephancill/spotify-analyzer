@@ -2,10 +2,11 @@
 <html>
     <head>
         <meta charset="utf-8">
-        <title>Spotify Library Analyzer</title>
+        <title>Spotify Library Analyer</title>
     </head>
     <body>
-        <h1>Spotify Library Analyzer</h1>
+        <h1 style="float: left" id="title">Spotify Library Analyzer</h1>
+        <br><br>(<span id="version"></span>) by <a href="https://twitter.com/stephancill">@stephancill</a><br><br>
         <h2 id="fetchStatus">Fetching/parsing songs...</h2>
         <span>(</span><span id="totalLookedUp">0</span><span>/</span><span id="totalSongs">?</span><span>)</span>
         <span>(ETA: </span><span id="eta"></span><span> seconds)</span>
@@ -19,10 +20,13 @@
     </body>
 </html>
 <script type="text/javascript">
-console.log("v0.1.6");
+
+var version = "v0.1.7"
+console.log(version);
+document.getElementById("version").innerHTML = version
 
 var spotify_client_id = '04ec33bc2f0544b4b06c9c78c251ff07'; // Your client id (meh)
-var redirect_uri = (location.origin == "http://localhost:8008" ? location.origin+'/callback' : location.origin+location.pathname)
+var redirect_uri = location.origin+location.pathname
 
 var auth_url = `https://accounts.spotify.com/authorize?client_id=${spotify_client_id}&response_type=token&redirect_uri=${encodeURIComponent(redirect_uri)}&scope=user-library-read`
 
@@ -39,10 +43,9 @@ var timer = null
 var genreDemographics = {}
 var chartsCreated = false
 
-if (location.pathname === "/callback" || location.search != "") {
-    console.error("case 1");
+if (location.hash != "") {
     authenticate(spotify_client_id, redirect_uri, populateSongs)
-    // window.history.pushState('page2', 'Title', '/');
+    window.history.pushState('page2', 'Title', location.pathname);
 } else {
     location.replace(auth_url)
 }
@@ -60,7 +63,8 @@ function authenticate(spotify_client_id, redirect_uri, callback) {
 
     if (!(gup("error"))) {
         access_token = `${location.hash}`.substring(location.hash.indexOf("=")+1, location.hash.indexOf("&"))
-        callback(access_token, refresh_token)
+        console.log(access_token);
+        callback(access_token)
     } else {
         console.error("Error");
     }
@@ -68,7 +72,7 @@ function authenticate(spotify_client_id, redirect_uri, callback) {
 
 function populateSongs(access_token) {
     var endpoint = "https://api.spotify.com/v1/me/tracks"
-
+    console.log(access_token);
     var headers = new Headers()
     headers.append('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')
     headers.append('Authorization', "Bearer " + access_token)
