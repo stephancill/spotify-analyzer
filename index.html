@@ -17,8 +17,10 @@
                 <select id="sourceSelect" disabled="true" class="" name="">
                     <option id="userLibrary">My library</option>
                     <optgroup id="userPlaylists" label="Playlists" ></optgroup>
-                    <option value="https://api.spotify.com/v1/me">My library</option>
+                    <option value="playlistURLOption">Other playlist</option>
                 </select>
+                <br>
+                <input id="playlistURL" type="text" style="visibility:hidden;margin-top:10px;width:150px" placeholder="Playlist link/ID">
                 <br>
                 <button id="confirmSource" disabled="true" style="margin-top:20px" type="button">Proceed</button>
             </div>
@@ -37,6 +39,7 @@
 
             <!-- Output -->
             <div id="charts" style="visibility: hidden;margin-left:auto;margin-right:auto;margin-top:20px">
+                <h2>Results:</h2>
                 <div class="" style="padding-bottom:20px">
                     <span id="feedback"></span>
                     <br>
@@ -57,7 +60,7 @@
 </html>
 <script type="text/javascript">
 
-var version = "v0.2.4"
+var version = "v0.2.5"
 console.log(version);
 document.getElementById("version").innerHTML = version
 
@@ -149,22 +152,59 @@ function ready() {
                 // Click listener
                 document.getElementById("confirmSource").addEventListener("click", ()=>{
                     document.getElementById("statusContainer").style.visibility = "visible"
-                    var value = JSON.parse(document.getElementById("sourceSelect").value)
-                    var endpoint = value.href + "/tracks"
-                    chartTitle = `Top genres for ${decodeURIComponent(value.title)} (${value.owner}) on ${printDate()}`
-                    chartTitleObject = value
-                    if (currentPlaylist != endpoint) {
-                        populateSongs(endpoint)
+                    var value = document.getElementById("sourceSelect").value
+                    var endpoint = ""
+                    if (value != "playlistURLOption") {
+                        value = JSON.parse(document.getElementById("sourceSelect").value)
+                        endpoint = value.href + "/tracks"
+                        chartTitle = `Top genres for ${decodeURIComponent(value.title)} (${value.owner}) on ${printDate()}`
+                        chartTitleObject = value
+                        if (currentPlaylist != endpoint) {
+                            populateSongs(endpoint)
+                        }
+                    } else {
+                        // process text field and generate endpoint
+                        endpoint = parsePlaylistInput(document.getElementById("playlistURL").value)
+                        if (endpoint === "__!__Invalid link__!_#") {
+                            alert("Invalid playlist link")
+                        } else if (currentPlaylist != endpoint) {
+                            fetch(endpoint, GETRequestConfig)
+                            .then(blob => blob.json())
+                            .then(data => {
+                                chartTitle = `Top genres for ${decodeURIComponent(data.name)} (${data.owner.id}) on ${printDate()}`
+                                chartTitleObject = value
+                                populateSongs(endpoint + "/tracks")
+                            })
+                        }
                     }
                 })
                 document.getElementById("sourceSelect").addEventListener("change", ()=> {
-                    console.log(this);
                     // add listener to check if "Playlist URL" option is selected
+                    // enable/disable text field
+                    value = document.getElementById("sourceSelect").value
+                    if (value === "playlistURLOption") {
+                        document.getElementById("playlistURL").style.visibility = "visible"
+                    } else {
+                        document.getElementById("playlistURL").style.visibility = "hidden"
+                    }
                 })
             })
         })
     }
+}
 
+function parsePlaylistInput(input) {
+    var result = (input + "/").split("/")
+    console.log(result);
+    var i = result.length-1
+    var tmp = result[i]
+    for (var i = result.length-1; i > -1; i--) {
+        tmp = result[i]
+        if (tmp.length === 22) {
+            return `https://api.spotify.com/v1/users/${spotify_client_id}/playlists/${tmp}`
+        }
+    }
+    return "__!__Invalid link__!_#"
 }
 
 function authenticate(spotify_client_id, redirect_uri, callback) {
