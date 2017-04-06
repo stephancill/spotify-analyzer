@@ -35,7 +35,7 @@
 </html>
 <script type="text/javascript">
 
-var version = "v0.2.0"
+var version = "v0.2.1"
 console.log(version);
 document.getElementById("version").innerHTML = version
 
@@ -199,7 +199,7 @@ function analyzeSongs() {
         tabulated.push([keysSorted[i], genreDemographics[keysSorted[i]].count, genreDemographics[keysSorted[i]].tracks])
     }
     console.table(tabulated)
-    document.getElementById("feedback").innerHTML = `Found ${songTags} tags for ${songsWithTags} songs`
+    document.getElementById("feedback").innerHTML = `${songTags} tags for ${songsWithTags} songs`
     document.getElementById("charts").style.visibility = "visible"
     document.getElementById("currentContainer").style.visibility = "hidden"
     // Charts
