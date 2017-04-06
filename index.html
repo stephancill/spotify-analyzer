@@ -19,7 +19,7 @@
     </body>
 </html>
 <script type="text/javascript">
-console.log("v0.1.4");
+console.log("v0.1.5");
 
 var spotify_client_id = '04ec33bc2f0544b4b06c9c78c251ff07'; // Your client id (meh)
 var redirect_uri = (location.origin == "http://localhost:8008" ? location.origin+'/callback' : location.origin+location.pathname)
@@ -65,6 +65,35 @@ function authenticate(spotify_client_id, redirect_uri, callback) {
     }
 }
 
+function populateSongs(access_token) {
+    var endpoint = "https://api.spotify.com/v1/me/tracks"
+
+    var headers = new Headers()
+    headers.append('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')
+    headers.append('Authorization', "Bearer " + access_token)
+
+    var request = { method: 'GET',
+                   headers: headers,
+                   mode: 'cors',
+                   cache: 'default' }
+
+    var requestsMade = 0
+    var limit = 50
+
+    console.log(endpoint + `?limit=${limit}&offset=${requestsMade * limit}`, request);
+
+    fetch(endpoint + `?limit=${limit}&offset=${requestsMade * limit}`, request)
+    .then((blob) => blob.json())
+    .then((data) => {
+        data.items.map(item => {
+            songs.push({title: item.track.name, artist: item.track.artists[0].name})
+        })
+        getTagsForSongs()
+        updateSongCount(data.items)
+        recursiveGet(data, endpoint, request, requestsMade+1, limit)
+    })
+}
+
 function recursiveGet(responseData, endpoint, request, requestsMade, limit, maxRequests=null, callback=()=>{}) {
     if (maxRequests !== null) {
         if (requestsMade > maxRequests) {
@@ -86,33 +115,6 @@ function recursiveGet(responseData, endpoint, request, requestsMade, limit, maxR
     } else {
         callback()
     }
-}
-
-function populateSongs(access_token) {
-    var endpoint = "https://api.spotify.com/v1/me/tracks"
-
-    var headers = new Headers()
-    headers.append('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')
-    headers.append('Authorization', "Bearer " + access_token)
-
-    var request = { method: 'GET',
-                   headers: headers,
-                   mode: 'cors',
-                   cache: 'default' }
-
-    var requestsMade = 0
-    var limit = 50
-
-    fetch(endpoint + `?limit=${limit}&offset=${requestsMade * limit}`, request)
-    .then((blob) => blob.json())
-    .then((data) => {
-        data.items.map(item => {
-            songs.push({title: item.track.name, artist: item.track.artists[0].name})
-        })
-        getTagsForSongs()
-        updateSongCount(data.items)
-        recursiveGet(data, endpoint, request, requestsMade+1, limit)
-    })
 }
 
 function getTagsForSongs() {
