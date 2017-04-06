@@ -41,7 +41,7 @@ var chartsCreated = false
 
 if (location.pathname === "/callback" || location.search != "") {
     authenticate(spotify_client_id, redirect_uri, populateSongs)
-    window.history.pushState('page2', 'Title', '/');
+    // window.history.pushState('page2', 'Title', '/');
 } else {
     location.replace(auth_url)
 }
