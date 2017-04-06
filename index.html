@@ -63,7 +63,6 @@ function authenticate(spotify_client_id, redirect_uri, callback) {
 
     if (!(gup("error"))) {
         access_token = `${location.hash}`.substring(location.hash.indexOf("=")+1, location.hash.indexOf("&"))
-        console.log(access_token);
         callback(access_token)
     } else {
         console.error("Error");
@@ -72,7 +71,6 @@ function authenticate(spotify_client_id, redirect_uri, callback) {
 
 function populateSongs(access_token) {
     var endpoint = "https://api.spotify.com/v1/me/tracks"
-    console.log(access_token);
     var headers = new Headers()
     headers.append('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')
     headers.append('Authorization', "Bearer " + access_token)
@@ -84,8 +82,6 @@ function populateSongs(access_token) {
 
     var requestsMade = 0
     var limit = 50
-
-    console.log(endpoint + `?limit=${limit}&offset=${requestsMade * limit}`, request);
 
     fetch(endpoint + `?limit=${limit}&offset=${requestsMade * limit}`, request)
     .then((blob) => blob.json())
@@ -131,7 +127,7 @@ function getSongTags() {
     if (lastFMProcessIndex < songs.length) {
         var title = songs[lastFMProcessIndex].title
         var artist = songs[lastFMProcessIndex].artist
-        var endpoint = `http://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=${lastfm_api_key}`
+        var endpoint = `https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=${lastfm_api_key}`
         var params = `&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}`
         var appendix = "&user=RJ&format=json"
         fetch(endpoint + params + appendix)
@@ -160,7 +156,6 @@ function getSongTags() {
     } else if (!chartsCreated){
         console.log("clearing");
         window.clearInterval(timer)
-        console.log(timer);
         document.getElementById("fetchStatus").innerHTML = "Done fetching songs."
         analyzeSongs()
         chartsCreated = true
