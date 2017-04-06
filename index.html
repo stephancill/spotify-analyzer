@@ -19,11 +19,12 @@
     </body>
 </html>
 <script type="text/javascript">
-console.log("v0.1.3");
+console.log("v0.1.4");
+
 var spotify_client_id = '04ec33bc2f0544b4b06c9c78c251ff07'; // Your client id (meh)
 var spotify_client_secret = '595fe83b487d4924baef110f240d129b'; // Your secret (meh)
 var redirect_uri = (location.origin == "http://localhost:8008" ? location.origin+'/callback' : location.origin+location.pathname)
-var auth_url = `https://accounts.spotify.com/authorize/?client_id=${spotify_client_id}&response_type=code&redirect_uri=${encodeURIComponent(redirect_uri)}&scope=user-library-read`
+var auth_url = `https://accounts.spotify.com/authorize?client_id=${spotify_client_id}&response_type=token&redirect_uri=${encodeURIComponent(redirect_uri)}&scope=user-library-read`
 
 var access_token = null
 var refresh_token = null
@@ -45,6 +46,25 @@ if (location.pathname === "/callback" || location.search != "") {
     location.replace(auth_url)
 }
 
+function authenticate(spotify_client_id, spotify_client_secret, redirect_uri, callback) {
+    var access_token = null
+    function gup(name, url) {
+        if (!url) url = location.href;
+        name = name.replace(/[\[]/,"\\\[").replace(/[\]]/,"\\\]")
+        var regexS = "[\\?&]"+name+"=([^&#]*)"
+        var regex = new RegExp( regexS )
+        var results = regex.exec( url )
+        return results == null ? null : results[1]
+    }
+
+    if (!(gup("error"))) {
+        access_token = `${location.hash}`.substring(location.hash.indexOf("=")+1, location.hash.indexOf("&"))
+        callback(access_token, refresh_token)
+    } else {
+        console.error("Error");
+    }
+}
+
 function recursiveGet(responseData, endpoint, request, requestsMade, limit, maxRequests=null, callback=()=>{}) {
     if (maxRequests !== null) {
         if (requestsMade > maxRequests) {
@@ -59,7 +79,7 @@ function recursiveGet(responseData, endpoint, request, requestsMade, limit, maxR
             data.items.map(item => {
                 songs.push({title: item.track.name, artist: item.track.artists[0].name})
             })
-            createSongElements(data.items)
+            updateSongCount(data.items)
             // recursiveGet(data, endpoint, request, requestsMade+1, limit, 2)
             recursiveGet(data, endpoint, request, requestsMade+1, limit, maxRequests, callback)
         })
@@ -90,7 +110,7 @@ function populateSongs(access_token) {
             songs.push({title: item.track.name, artist: item.track.artists[0].name})
         })
         getTagsForSongs()
-        createSongElements(data.items)
+        updateSongCount(data.items)
         recursiveGet(data, endpoint, request, requestsMade+1, limit)
     })
 }
@@ -101,15 +121,12 @@ function getTagsForSongs() {
 }
 
 function getSongTags() {
-    console.log(timer);
     if (lastFMProcessIndex < songs.length) {
         var title = songs[lastFMProcessIndex].title
         var artist = songs[lastFMProcessIndex].artist
-// method=track.getInfo&api_key=b25b959554ed76058ac220b7b2e0a026&artist=cher&track=believe&format=json
         var endpoint = `http://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=${lastfm_api_key}`
         var params = `&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(title)}`
         var appendix = "&user=RJ&format=json"
-        // console.log(title, artist);
         fetch(endpoint + params + appendix)
         .then(blob => blob.json())
         .then(data => {
@@ -130,9 +147,6 @@ function getSongTags() {
             requestedSongs.push({title: title, artist: artist, tags: tags})
             document.getElementById("totalLookedUp").innerHTML = lastFMProcessIndex
             document.getElementById("eta").innerHTML = 200 * (songs.length - lastFMProcessIndex) / 1000
-            // var tags = ((tags.length === 0) ? "" : tags.reduce((acc, tag) => {
-            //     return (acc + "" === "[object Object]" ? "" : acc) + tag.name + ","
-            // }))
             document.getElementById("current").innerHTML = title + " - " + artist
         })
         lastFMProcessIndex += 1
@@ -209,63 +223,10 @@ function analyzeSongs() {
             }
         }
     })
-    // console.log(ctx.toDataURL());
 }
 
-function createSongElements(tracks) {
-    // var container = document.getElementById("songs")
-    // var html = ""
-    // tracks.map(track => {
-    //     html += `<span>${track.track.name} - ${track.track.artists[0].name}</span><br>`
-    // })
-    // container.innerHTML += html
+function updateSongCount(tracks) {
     document.getElementById("totalSongs").innerHTML = songs.length
-}
-
-function authenticate(spotify_client_id, spotify_client_secret, redirect_uri, callback) {
-    var access_token = null
-    var refresh_token = null
-
-    function b64EncodeUnicode(str) {
-        return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
-            return String.fromCharCode('0x' + p1)
-        }));
-    }
-
-    function httpGetAsync(theUrl, params, callback)
-    {
-        var xmlHttp = new XMLHttpRequest()
-        xmlHttp.onreadystatechange = function() {
-            if (xmlHttp.readyState == 4 && xmlHttp.status == 200) {
-                callback(xmlHttp.responseText, xmlHttp.status)
-            }
-        }
-        xmlHttp.open("POST", theUrl, true); // true for asynchronous
-        xmlHttp.setRequestHeader("Authorization", "Basic " + b64EncodeUnicode(`${spotify_client_id}:${spotify_client_secret}`))
-        xmlHttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8")
-        xmlHttp.send(params)
-    }
-
-    function gup(name, url) {
-        if (!url) url = location.href;
-        name = name.replace(/[\[]/,"\\\[").replace(/[\]]/,"\\\]")
-        var regexS = "[\\?&]"+name+"=([^&#]*)"
-        var regex = new RegExp( regexS )
-        var results = regex.exec( url )
-        return results == null ? null : results[1]
-    }
-
-    if (!(gup("error"))) {
-        // console.log(gup("code"));
-        httpGetAsync("https://accounts.spotify.com/api/token", `grant_type=authorization_code&code=${gup("code")}&redirect_uri=${encodeURIComponent(redirect_uri)}`, (responseText) => {
-            var json = JSON.parse(responseText)
-            access_token = json.access_token
-            refresh_token = json.refresh_token
-            callback(access_token, refresh_token)
-        })
-    } else {
-        console.error("Error");
-    }
 }
 
 </script>
