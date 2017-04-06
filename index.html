@@ -19,7 +19,7 @@
     </body>
 </html>
 <script type="text/javascript">
-console.log("v0.1.5");
+console.log("v0.1.6");
 
 var spotify_client_id = '04ec33bc2f0544b4b06c9c78c251ff07'; // Your client id (meh)
 var redirect_uri = (location.origin == "http://localhost:8008" ? location.origin+'/callback' : location.origin+location.pathname)
@@ -40,6 +40,7 @@ var genreDemographics = {}
 var chartsCreated = false
 
 if (location.pathname === "/callback" || location.search != "") {
+    console.error("case 1");
     authenticate(spotify_client_id, redirect_uri, populateSongs)
     // window.history.pushState('page2', 'Title', '/');
 } else {
