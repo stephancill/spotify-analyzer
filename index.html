@@ -8,34 +8,41 @@
     </head>
     <body style="font-family: 'Open Sans Condensed', sans-serif;">
         <div style="text-align:center;">
+            <!-- Page title -->
             <h1 style="text-align:center" id="title">Spotify Library Analyzer <sub>(<span id="version"></span>)</sub></h1>
-            <h2 id="fetchStatus">Fetching/parsing songs...</h2>
-            (<span id="totalLookedUp">0</span><span>/</span><span id="totalSongs">?</span>)
-            <span>(ETA: </span><span id="eta"></span><span> seconds)</span>
 
-            <div id="currentContainer">
-                <span >Current: </span><span id="current"></span>
+            <!-- Status -->
+            <div class="">
+                <h2 id="fetchStatus">Fetching/parsing songs...</h2>
+                (<span id="totalLookedUp">0</span><span>/</span><span id="totalSongs">?</span>)
+                <span>(ETA: </span><span id="eta"></span><span> seconds)</span>
+
+                <div id="currentContainer">
+                    <span >Current: </span><span id="current"></span>
+                </div>
             </div>
 
+            <!-- Output -->
             <div id="charts" style="visibility: hidden;margin-left:auto;margin-right:auto;margin-top:20px">
                 <div class="" style="padding-bottom:20px">
-                    <span >Found <span id="feedback"></span>.</span>
+                    <span id="feedback"></span>
                     <br>
                 </div>
                 <canvas id="myChart" width="500" height="500"></canvas>
                 <br>
                 <a id="twitter" href="https://twitter.com/share"  class="twitter-share-button" data-size="large" data-text="Find the 6 most popular genres in your Spotify library with " data-url="https://stephancill.github.io/spotify-analyzer/" data-related="stephancill" data-show-count="false">Tweet</a><script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
-
             </div>
-            <p>Made by <a target="_blank" href="https://twitter.com/stephancill">@stephancill</a></p>
 
+            <!-- Credits -->
+            <p>Made by <a target="_blank" href="https://twitter.com/stephancill">@stephancill</a></p>
         </div>
+        <!-- Fork me on GitHub -->
         <a target="_blank" href="https://github.com/stephancill/spotify-analyzer"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/38ef81f8aca64bb9a64448d0d70f1308ef5341ab/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6461726b626c75655f3132313632312e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png"></a>
     </body>
 </html>
 <script type="text/javascript">
 
-var version = "v0.2.1"
+var version = "v0.2.2"
 console.log(version);
 document.getElementById("version").innerHTML = version
 
@@ -61,15 +68,50 @@ var timer = null
 var genreDemographics = {}
 var chartsCreated = false
 
+var GETRequestConfig = null
+
 if (location.hash != "") {
-    authenticate(spotify_client_id, redirect_uri, populateSongs)
+    authenticate(spotify_client_id, redirect_uri, ready)
     window.history.pushState('page2', 'Title', location.pathname);
 } else {
     location.replace(auth_url)
 }
 
+function ready() {
+    console.log("ready");
+
+    // Set request headers
+    var headers = new Headers()
+    headers.append('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')
+    headers.append('Authorization', "Bearer " + access_token)
+
+    GETRequestConfig = {    method: 'GET',
+                                headers: headers,
+                                mode: 'cors',
+                                cache: 'default' }
+
+    // Set username
+    var userEndpoint = "https://api.spotify.com/v1/me"
+
+    fetch(userEndpoint, GETRequestConfig)
+    .then((blob) => blob.json())
+    .then((data) => {
+        spotify_client_id = data.id
+    })
+
+    // Get playlists
+    var playlistsEndpoint = `https://api.spotify.com/v1/users/${spotify_client_id}/playlists`
+
+    fetch(playlistsEndpoint, GETRequestConfig)
+    .then(blob=>blob.json())
+    .then(data=>{
+        console.log(data);
+    })
+
+    // populateSongs()
+}
+
 function authenticate(spotify_client_id, redirect_uri, callback) {
-    var access_token = null
     function gup(name, url) {
         if (!url) url = location.href;
         name = name.replace(/[\[]/,"\\\[").replace(/[\]]/,"\\\]")
@@ -87,28 +129,13 @@ function authenticate(spotify_client_id, redirect_uri, callback) {
     }
 }
 
-function populateSongs(access_token) {
+function populateSongs() {
     var endpoint = "https://api.spotify.com/v1/me/tracks"
-    var headers = new Headers()
-    headers.append('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')
-    headers.append('Authorization', "Bearer " + access_token)
-
-    var request = { method: 'GET',
-                   headers: headers,
-                   mode: 'cors',
-                   cache: 'default' }
 
     var requestsMade = 0
     var limit = 50
 
-    // Set username
-    fetch("https://api.spotify.com/v1/me", request)
-    .then((blob) => blob.json())
-    .then((data) => {
-        spotify_client_id = data.id
-    })
-
-    fetch(endpoint + `?limit=${limit}&offset=${requestsMade * limit}`, request)
+    fetch(endpoint + `?limit=${limit}&offset=${requestsMade * limit}`, GETRequestConfig)
     .then((blob) => blob.json())
     .then((data) => {
         data.items.map(item => {
@@ -116,11 +143,16 @@ function populateSongs(access_token) {
         })
         getTagsForSongs()
         updateSongCount(data.items)
-        recursiveGet(data, endpoint, request, requestsMade+1, limit)
+        recursiveGet(data, endpoint, GETRequestConfig, requestsMade+1, limit, data => {
+            data.items.map(item => {
+                songs.push({title: item.track.name, artist: item.track.artists[0].name})
+            })
+            updateSongCount(data.items)
+        })
     })
 }
 
-function recursiveGet(responseData, endpoint, request, requestsMade, limit, maxRequests=null, callback=()=>{}) {
+function recursiveGet(responseData, endpoint, request, requestsMade, limit, action=()=>{}, maxRequests=null, callback=()=>{}) {
     if (maxRequests !== null) {
         if (requestsMade > maxRequests) {
             callback()
@@ -131,12 +163,8 @@ function recursiveGet(responseData, endpoint, request, requestsMade, limit, maxR
         fetch(endpoint + `?limit=${limit}&offset=${requestsMade * limit}`, request)
         .then((blob) => blob.json())
         .then((data) => {
-            data.items.map(item => {
-                songs.push({title: item.track.name, artist: item.track.artists[0].name})
-            })
-            updateSongCount(data.items)
-            // recursiveGet(data, endpoint, request, requestsMade+1, limit, 2)
-            recursiveGet(data, endpoint, request, requestsMade+1, limit, maxRequests, callback)
+            action(data)
+            recursiveGet(data, endpoint, request, requestsMade+1, limit, action, maxRequests, callback)
         })
     } else {
         callback()
@@ -199,7 +227,7 @@ function analyzeSongs() {
         tabulated.push([keysSorted[i], genreDemographics[keysSorted[i]].count, genreDemographics[keysSorted[i]].tracks])
     }
     console.table(tabulated)
-    document.getElementById("feedback").innerHTML = `${songTags} tags for ${songsWithTags} songs`
+    document.getElementById("feedback").innerHTML = `Found ${songTags} tags for ${songsWithTags} songs.`
     document.getElementById("charts").style.visibility = "visible"
     document.getElementById("currentContainer").style.visibility = "hidden"
     // Charts
