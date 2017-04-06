@@ -11,8 +11,22 @@
             <!-- Page title -->
             <h1 style="text-align:center" id="title">Spotify Library Analyzer <sub>(<span id="version"></span>)</sub></h1>
 
+            <!-- Input -->
+            <h2>Select source:</h2>
+            <div id="sourceSelectContainer">
+                <select id="sourceSelect" disabled="true" class="" name="">
+                    <option value="https://api.spotify.com/v1/me">My library</option>
+                    <optgroup id="userPlaylists" label="Playlists" >
+
+                    </optgroup>
+                </select>
+                <br>
+                <button id="confirmSource" disabled="true" style="margin-top:20px" type="button">Proceed</button>
+            </div>
+
+
             <!-- Status -->
-            <div class="">
+            <div id="statusContainer" style="visibility: hidden">
                 <h2 id="fetchStatus">Fetching/parsing songs...</h2>
                 (<span id="totalLookedUp">0</span><span>/</span><span id="totalSongs">?</span>)
                 <span>(ETA: </span><span id="eta"></span><span> seconds)</span>
@@ -28,7 +42,9 @@
                     <span id="feedback"></span>
                     <br>
                 </div>
-                <canvas id="myChart" width="500" height="500"></canvas>
+                <div id="chartContainer" class="">
+                    <canvas id="myChart" width="500" height="500"></canvas>
+                </div>
                 <br>
                 <a id="twitter" href="https://twitter.com/share"  class="twitter-share-button" data-size="large" data-text="Find the 6 most popular genres in your Spotify library with " data-url="https://stephancill.github.io/spotify-analyzer/" data-related="stephancill" data-show-count="false">Tweet</a><script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
             </div>
@@ -42,7 +58,7 @@
 </html>
 <script type="text/javascript">
 
-var version = "v0.2.2"
+var version = "v0.2.3"
 console.log(version);
 document.getElementById("version").innerHTML = version
 
@@ -58,6 +74,9 @@ var spotify_client_id = null
 
 var lastfm_api_key = "b25b959554ed76058ac220b7b2e0a026"
 
+var playlistObjects = []
+
+var currentPlaylist = ""
 var songs = []
 var requestedSongs = []
 var songsWithTags = 0
@@ -67,6 +86,8 @@ var timer = null
 
 var genreDemographics = {}
 var chartsCreated = false
+var chartTitle = ""
+var chartTitleObject = {}
 
 var GETRequestConfig = null
 
@@ -80,15 +101,17 @@ if (location.hash != "") {
 function ready() {
     console.log("ready");
 
-    // Set request headers
+    // Set generic request headers
     var headers = new Headers()
     headers.append('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')
     headers.append('Authorization', "Bearer " + access_token)
 
-    GETRequestConfig = {    method: 'GET',
-                                headers: headers,
-                                mode: 'cors',
-                                cache: 'default' }
+    GETRequestConfig = {
+        method: 'GET',
+        headers: headers,
+        mode: 'cors',
+        cache: 'default'
+    }
 
     // Set username
     var userEndpoint = "https://api.spotify.com/v1/me"
@@ -97,18 +120,46 @@ function ready() {
     .then((blob) => blob.json())
     .then((data) => {
         spotify_client_id = data.id
+        getPlaylists()
     })
 
     // Get playlists
-    var playlistsEndpoint = `https://api.spotify.com/v1/users/${spotify_client_id}/playlists`
+    function getPlaylists() {
+        var playlistsEndpoint = `https://api.spotify.com/v1/users/${spotify_client_id}/playlists`
 
-    fetch(playlistsEndpoint, GETRequestConfig)
-    .then(blob=>blob.json())
-    .then(data=>{
-        console.log(data);
-    })
+        function handlePlaylistResponse(data) {
+            data.items.map(item => {
+                var value = JSON.stringify({href: item.href, title: encodeURIComponent(item.name.replace("'", "")), owner: item.owner.id})
+                document.getElementById("userPlaylists").innerHTML += `
+                <option value='${value}'>${item.name}</option>
+                `
+            })
+        }
 
-    // populateSongs()
+        fetch(playlistsEndpoint, GETRequestConfig)
+        .then(blob=>blob.json())
+        .then(data=>{
+            handlePlaylistResponse(data)
+            recursiveGet(data, playlistsEndpoint, GETRequestConfig, 1, 20, handlePlaylistResponse, maxRequests=null, callback=()=>{
+                // Got playlists - enable source select
+                document.getElementById("sourceSelect").disabled = false
+                document.getElementById("confirmSource").disabled = false
+
+                // Click listener
+                document.getElementById("confirmSource").addEventListener("click", ()=>{
+                    document.getElementById("statusContainer").style.visibility = "visible"
+                    var value = JSON.parse(document.getElementById("sourceSelect").value)
+                    var endpoint = value.href + "/tracks"
+                    chartTitle = `Top genres for ${decodeURIComponent(value.title)} (${value.owner}) on ${printDate()}`
+                    chartTitleObject = value
+                    if (currentPlaylist != endpoint) {
+                        populateSongs(endpoint)
+                    }
+                })
+            })
+        })
+    }
+
 }
 
 function authenticate(spotify_client_id, redirect_uri, callback) {
@@ -129,8 +180,21 @@ function authenticate(spotify_client_id, redirect_uri, callback) {
     }
 }
 
-function populateSongs() {
-    var endpoint = "https://api.spotify.com/v1/me/tracks"
+function populateSongs(endpoint) {
+    currentPlaylist = endpoint
+    document.getElementById("charts").style.visibility = "hidden"
+    document.getElementById("totalLookedUp").innerHTML = 0
+
+    // Reinitialize variables
+    songs = []
+    requestedSongs = []
+    songsWithTags = 0
+    songTags = 0
+    lastFMProcessIndex = 0
+    timer = null
+
+    genreDemographics = {}
+    chartsCreated = false
 
     var requestsMade = 0
     var limit = 50
@@ -230,6 +294,7 @@ function analyzeSongs() {
     document.getElementById("feedback").innerHTML = `Found ${songTags} tags for ${songsWithTags} songs.`
     document.getElementById("charts").style.visibility = "visible"
     document.getElementById("currentContainer").style.visibility = "hidden"
+
     // Charts
     var labels = []
     var data = []
@@ -238,7 +303,12 @@ function analyzeSongs() {
         data.push(tabulated[i][1])
     }
     Chart.defaults.global.responsive = false
-    var ctx = document.getElementById("myChart");
+
+    // Create new element because reuse of element reponds inappopriately
+    document.getElementById("chartContainer").innerHTML = `
+    <canvas id="${encodeURIComponent(chartTitleObject.title)}" width="500" height="500"></canvas>
+    `
+    var ctx = document.getElementById(encodeURIComponent(chartTitleObject.title));
     var myChart = new Chart(ctx, {
         type: "bar",
         data: {
@@ -277,7 +347,7 @@ function analyzeSongs() {
             },
             title: {
                 display: true,
-                text: `Top 6 genres for ${spotify_client_id} on ${printDate()}`
+                text: chartTitle
             }
         }
     })
