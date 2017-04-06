@@ -180,7 +180,6 @@ function getSongTags() {
         })
         lastFMProcessIndex += 1
     } else if (!chartsCreated){
-        console.log("clearing");
         window.clearInterval(timer)
         document.getElementById("fetchStatus").innerHTML = "Done."
         analyzeSongs()
