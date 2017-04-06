@@ -3,40 +3,57 @@
     <head>
         <meta charset="utf-8">
         <title>Spotify Library Analyer</title>
+        <link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet">
     </head>
-    <body>
-        <h1 style="float: left" id="title">Spotify Library Analyzer</h1>
-        <br><br>(<span id="version"></span>) by <a href="https://twitter.com/stephancill">@stephancill</a><br><br>
-        <h2 id="fetchStatus">Fetching/parsing songs...</h2>
-        <span>(</span><span id="totalLookedUp">0</span><span>/</span><span id="totalSongs">?</span><span>)</span>
-        <span>(ETA: </span><span id="eta"></span><span> seconds)</span>
-        <br>
-        <span>Current: </span><span id="current"></span>
-        <div id="charts" style="visibility: hidden">
-            <canvas id="myChart" width="500" height="500"></canvas>
-        </div>
+    <body style="font-family: 'Open Sans Condensed', sans-serif;">
+        <div style="text-align:center;">
+            <h1 style="text-align:center" id="title">Spotify Library Analyzer <sub>(<span id="version"></span>)</sub></h1>
+            <h2 id="fetchStatus">Fetching/parsing songs...</h2>
+            (<span id="totalLookedUp">0</span><span>/</span><span id="totalSongs">?</span>)
+            <span>(ETA: </span><span id="eta"></span><span> seconds)</span>
 
-        <a href="https://github.com/stephancill/spotify-analyzer"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/38ef81f8aca64bb9a64448d0d70f1308ef5341ab/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6461726b626c75655f3132313632312e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png"></a>
+            <div id="currentContainer">
+                <span >Current: </span><span id="current"></span>
+            </div>
+
+            <div id="charts" style="visibility: hidden;margin-left:auto;margin-right:auto;margin-top:20px">
+                <div class="" style="padding-bottom:20px">
+                    <span >Found <span id="feedback"></span>.</span>
+                    <br>
+                </div>
+                <canvas id="myChart" width="500" height="500"></canvas>
+                <br>
+                <a id="twitter" href="https://twitter.com/share"  class="twitter-share-button" data-size="large" data-text="Find the 6 most popular genres in your Spotify library with " data-url="https://stephancill.github.io/spotify-analyzer/" data-related="stephancill" data-show-count="false">Tweet</a><script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+            </div>
+            <p>Made by <a target="_blank" href="https://twitter.com/stephancill">@stephancill</a></p>
+
+        </div>
+        <a target="_blank" href="https://github.com/stephancill/spotify-analyzer"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/38ef81f8aca64bb9a64448d0d70f1308ef5341ab/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6461726b626c75655f3132313632312e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png"></a>
     </body>
 </html>
 <script type="text/javascript">
 
-var version = "v0.1.8"
+var version = "v0.1.9"
 console.log(version);
 document.getElementById("version").innerHTML = version
 
 var spotify_client_id = '04ec33bc2f0544b4b06c9c78c251ff07'; // Your client id (meh)
 var redirect_uri = location.origin+location.pathname
 
-var auth_url = `https://accounts.spotify.com/authorize?client_id=${spotify_client_id}&response_type=token&redirect_uri=${encodeURIComponent(redirect_uri)}&scope=user-library-read`
+var auth_url = `https://accounts.spotify.com/authorize?client_id=${spotify_client_id}&response_type=token&redirect_uri=${encodeURIComponent(redirect_uri)}&scope=user-library-read%20user-read-private%20user-read-email`
 
 var access_token = null
 var refresh_token = null
+
+var spotify_client_id = null
 
 var lastfm_api_key = "b25b959554ed76058ac220b7b2e0a026"
 
 var songs = []
 var requestedSongs = []
+var songsWithTags = 0
+var songTags = 0
 var lastFMProcessIndex = 0
 var timer = null
 
@@ -82,6 +99,13 @@ function populateSongs(access_token) {
 
     var requestsMade = 0
     var limit = 50
+
+    // Set username
+    fetch("https://api.spotify.com/v1/me", request)
+    .then((blob) => blob.json())
+    .then((data) => {
+        spotify_client_id = data.id
+    })
 
     fetch(endpoint + `?limit=${limit}&offset=${requestsMade * limit}`, request)
     .then((blob) => blob.json())
@@ -134,9 +158,11 @@ function getSongTags() {
         .then(blob => blob.json())
         .then(data => {
             tags =  data.track.toptags.tag
+            songsWithTags++
             tags.map(tag => {
                 item = tag.name
                 if (lastFMProcessIndex < songs.length) {
+                    songTags++
                     if (genreDemographics[item]) {
                         genreDemographics[item]["count"] += 1
                         genreDemographics[item]["tracks"].push(songs[lastFMProcessIndex])
@@ -156,7 +182,7 @@ function getSongTags() {
     } else if (!chartsCreated){
         console.log("clearing");
         window.clearInterval(timer)
-        document.getElementById("fetchStatus").innerHTML = "Done fetching songs."
+        document.getElementById("fetchStatus").innerHTML = "Done."
         analyzeSongs()
         chartsCreated = true
     }
@@ -173,7 +199,9 @@ function analyzeSongs() {
         tabulated.push([keysSorted[i], genreDemographics[keysSorted[i]].count, genreDemographics[keysSorted[i]].tracks])
     }
     console.table(tabulated)
+    document.getElementById("feedback").innerHTML = `Found ${songTags} tags for ${songsWithTags} songs`
     document.getElementById("charts").style.visibility = "visible"
+    document.getElementById("currentContainer").style.visibility = "hidden"
     // Charts
     var labels = []
     var data = []
@@ -221,14 +249,23 @@ function analyzeSongs() {
             },
             title: {
                 display: true,
-                text: "Top 6 genres for me on " + new Date()
+                text: `Top 6 genres for ${spotify_client_id} on ${printDate()}`
             }
         }
     })
+    ctx.style.display = "inline"
 }
 
 function updateSongCount(tracks) {
     document.getElementById("totalSongs").innerHTML = songs.length
+}
+
+function printDate() {
+    var temp = new Date();
+    var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    var dateStr = `${temp.getDate()} ${months[temp.getMonth()]} ${temp.getFullYear()}`
+    // debug (dateStr );
+    return dateStr
 }
 
 </script>
