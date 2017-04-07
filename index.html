@@ -25,9 +25,10 @@
                         <option value="playlistURLOption">Other playlist</option>
                     </select>
                     <br>
-                    <input id="playlistURL" type="text" style="visibility:hidden;margin-top:10px;width:150px" placeholder="Playlist link/ID">
+                    <div id="playlistURLContainer">
+                    </div>
                     <br>
-                    <button id="confirmSource" disabled="true" style="margin-top:20px" type="button">Proceed</button>
+                    <button id="confirmSource" disabled="true" style="margin-top:-5px" type="button">Proceed</button>
                 </div>
             </div>
 
@@ -67,7 +68,7 @@
 </html>
 <script type="text/javascript">
 
-var version = "v0.2.7"
+var version = "v0.2.8"
 console.log(version);
 document.getElementById("version").innerHTML = version
 
@@ -191,9 +192,12 @@ function ready() {
                     // enable/disable text field
                     value = document.getElementById("sourceSelect").value
                     if (value === "playlistURLOption") {
-                        document.getElementById("playlistURL").style.visibility = "visible"
+
+                        document.getElementById("playlistURLContainer").innerHTML = `
+                        <input id="playlistURL" type="text" style="margin-top:10px;width:300px" placeholder="Playlist link/ID">
+                        `
                     } else {
-                        document.getElementById("playlistURL").style.visibility = "hidden"
+                        document.getElementById("playlistURLContainer").innerHTML = ``
                     }
                 })
             })
