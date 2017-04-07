@@ -5,25 +5,32 @@
         <title>Spotify Library Analyer</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet">
+        <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
     </head>
     <body style="font-family: 'Open Sans Condensed', sans-serif;">
         <div style="text-align:center;">
             <!-- Page title -->
             <h1 style="text-align:center" id="title">Spotify Library Analyzer <sub>(<span id="version"></span>)</sub></h1>
 
+            <!-- Login -->
+            <a id="login" href="/" style="background-color:#1DB954;font-family: 'Helvetica Neue'" class="btn btn-primary">Login with Spotify</a>
+
             <!-- Input -->
-            <h2>Select source:</h2>
-            <div id="sourceSelectContainer">
-                <select id="sourceSelect" disabled="true" class="" name="">
-                    <option id="userLibrary">My library</option>
-                    <optgroup id="userPlaylists" label="Your playlists" ></optgroup>
-                    <option value="playlistURLOption">Other playlist</option>
-                </select>
-                <br>
-                <input id="playlistURL" type="text" style="visibility:hidden;margin-top:10px;width:150px" placeholder="Playlist link/ID">
-                <br>
-                <button id="confirmSource" disabled="true" style="margin-top:20px" type="button">Proceed</button>
+            <div id="input" style="visibility:hidden;">
+                <h2>Select source:</h2>
+                <div id="sourceSelectContainer">
+                    <select id="sourceSelect" disabled="true" class="" name="">
+                        <option id="userLibrary">My library</option>
+                        <optgroup id="userPlaylists" label="Your playlists" ></optgroup>
+                        <option value="playlistURLOption">Other playlist</option>
+                    </select>
+                    <br>
+                    <input id="playlistURL" type="text" style="visibility:hidden;margin-top:10px;width:150px" placeholder="Playlist link/ID">
+                    <br>
+                    <button id="confirmSource" disabled="true" style="margin-top:20px" type="button">Proceed</button>
+                </div>
             </div>
+
 
 
             <!-- Status -->
@@ -60,7 +67,7 @@
 </html>
 <script type="text/javascript">
 
-var version = "v0.2.6"
+var version = "v0.2.7"
 console.log(version);
 document.getElementById("version").innerHTML = version
 
@@ -97,12 +104,13 @@ if (location.hash != "") {
     authenticate(spotify_client_id, redirect_uri, ready)
     window.history.pushState('page2', 'Title', location.pathname);
 } else {
-    location.replace(auth_url)
+    document.getElementById("login").href = location.replace(auth_url)
 }
 
 function ready() {
     console.log("ready");
-
+    document.getElementById("input").style.visibility = "visible"
+    document.getElementById("login").style.visibility = "hidden"
 
     // Set generic request headers
     var headers = new Headers()
