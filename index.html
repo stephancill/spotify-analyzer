@@ -104,7 +104,7 @@ if (location.hash != "") {
     authenticate(spotify_client_id, redirect_uri, ready)
     window.history.pushState('page2', 'Title', location.pathname);
 } else {
-    document.getElementById("login").href = location.replace(auth_url)
+    document.getElementById("login").href = auth_url
 }
 
 function ready() {
