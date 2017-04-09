@@ -5,24 +5,33 @@
         <title>Spotify Library Analyer</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet">
+        <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
     </head>
     <body style="font-family: 'Open Sans Condensed', sans-serif;">
         <div style="text-align:center;">
             <!-- Page title -->
             <h1 style="text-align:center" id="title">Spotify Library Analyzer <sub>(<span id="version"></span>)</sub></h1>
 
-            <!-- Input -->
-            <h2>Select source:</h2>
-            <div id="sourceSelectContainer">
-                <select id="sourceSelect" disabled="true" class="" name="">
-                    <option value="https://api.spotify.com/v1/me">My library</option>
-                    <optgroup id="userPlaylists" label="Playlists" >
+            <!-- Login -->
+            <a id="login" href="/" style="background-color:#1DB954;font-family: 'Helvetica Neue'" class="btn btn-primary">Login with Spotify</a>
 
-                    </optgroup>
-                </select>
-                <br>
-                <button id="confirmSource" disabled="true" style="margin-top:20px" type="button">Proceed</button>
+            <!-- Input -->
+            <div id="input" style="visibility:hidden;">
+                <h2>Select source:</h2>
+                <div id="sourceSelectContainer">
+                    <select id="sourceSelect" disabled="true" class="" name="">
+                        <option id="userLibrary">My library</option>
+                        <optgroup id="userPlaylists" label="Your playlists" ></optgroup>
+                        <option value="playlistURLOption">Other playlist</option>
+                    </select>
+                    <br>
+                    <div id="playlistURLContainer">
+                    </div>
+                    <br>
+                    <button id="confirmSource" disabled="true" style="margin-top:-5px" type="button">Proceed</button>
+                </div>
             </div>
+
 
 
             <!-- Status -->
@@ -38,6 +47,7 @@
 
             <!-- Output -->
             <div id="charts" style="visibility: hidden;margin-left:auto;margin-right:auto;margin-top:20px">
+                <h2>Results:</h2>
                 <div class="" style="padding-bottom:20px">
                     <span id="feedback"></span>
                     <br>
@@ -46,7 +56,7 @@
                     <canvas id="myChart" width="500" height="500"></canvas>
                 </div>
                 <br>
-                <a id="twitter" href="https://twitter.com/share"  class="twitter-share-button" data-size="large" data-text="Find the 6 most popular genres in your Spotify library with " data-url="https://stephancill.github.io/spotify-analyzer/" data-related="stephancill" data-show-count="false">Tweet</a><script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
+                <a id="twitter" href="https://twitter.com/share"  class="twitter-share-button" data-size="large" data-text="Analyze your favourite Spotify playlist with " data-url="https://stephancill.github.io/spotify-analyzer/" data-related="stephancill" data-show-count="false">Tweet</a><script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
             </div>
 
             <!-- Credits -->
@@ -58,7 +68,7 @@
 </html>
 <script type="text/javascript">
 
-var version = "v0.2.3"
+var version = "v0.2.8"
 console.log(version);
 document.getElementById("version").innerHTML = version
 
@@ -95,11 +105,13 @@ if (location.hash != "") {
     authenticate(spotify_client_id, redirect_uri, ready)
     window.history.pushState('page2', 'Title', location.pathname);
 } else {
-    location.replace(auth_url)
+    document.getElementById("login").href = auth_url
 }
 
 function ready() {
     console.log("ready");
+    document.getElementById("input").style.visibility = "visible"
+    document.getElementById("login").style.visibility = "hidden"
 
     // Set generic request headers
     var headers = new Headers()
@@ -120,6 +132,7 @@ function ready() {
     .then((blob) => blob.json())
     .then((data) => {
         spotify_client_id = data.id
+        document.getElementById("userLibrary").value = JSON.stringify({href: "https://api.spotify.com/v1/me", title: "saved tracks", owner: spotify_client_id})
         getPlaylists()
     })
 
@@ -148,18 +161,62 @@ function ready() {
                 // Click listener
                 document.getElementById("confirmSource").addEventListener("click", ()=>{
                     document.getElementById("statusContainer").style.visibility = "visible"
-                    var value = JSON.parse(document.getElementById("sourceSelect").value)
-                    var endpoint = value.href + "/tracks"
-                    chartTitle = `Top genres for ${decodeURIComponent(value.title)} (${value.owner}) on ${printDate()}`
-                    chartTitleObject = value
-                    if (currentPlaylist != endpoint) {
-                        populateSongs(endpoint)
+                    var value = document.getElementById("sourceSelect").value
+                    var endpoint = ""
+                    if (value != "playlistURLOption") {
+                        value = JSON.parse(document.getElementById("sourceSelect").value)
+                        endpoint = value.href + "/tracks"
+                        chartTitle = `Top genres for ${decodeURIComponent(value.title)} (${value.owner}) on ${printDate()}`
+                        chartTitleObject = value
+                        if (currentPlaylist != endpoint) {
+                            populateSongs(endpoint)
+                        }
+                    } else {
+                        // process text field and generate endpoint
+                        endpoint = parsePlaylistInput(document.getElementById("playlistURL").value)
+                        if (endpoint === "__!__Invalid link__!_#") {
+                            alert("Invalid playlist link")
+                        } else if (currentPlaylist != endpoint) {
+                            fetch(endpoint, GETRequestConfig)
+                            .then(blob => blob.json())
+                            .then(data => {
+                                chartTitle = `Top genres for ${decodeURIComponent(data.name)} (${data.owner.id}) on ${printDate()}`
+                                chartTitleObject = value
+                                populateSongs(endpoint + "/tracks")
+                            })
+                        }
+                    }
+                })
+                document.getElementById("sourceSelect").addEventListener("change", ()=> {
+                    // add listener to check if "Playlist URL" option is selected
+                    // enable/disable text field
+                    value = document.getElementById("sourceSelect").value
+                    if (value === "playlistURLOption") {
+
+                        document.getElementById("playlistURLContainer").innerHTML = `
+                        <input id="playlistURL" type="text" style="margin-top:10px;width:300px" placeholder="Playlist link/ID">
+                        `
+                    } else {
+                        document.getElementById("playlistURLContainer").innerHTML = ``
                     }
                 })
             })
         })
     }
+}
 
+function parsePlaylistInput(input) {
+    var result = (input + "/").split("/")
+    console.log(result);
+    var i = result.length-1
+    var tmp = result[i]
+    for (var i = result.length-1; i > -1; i--) {
+        tmp = result[i]
+        if (tmp.length === 22) {
+            return `https://api.spotify.com/v1/users/${spotify_client_id}/playlists/${tmp}`
+        }
+    }
+    return "__!__Invalid link__!_#"
 }
 
 function authenticate(spotify_client_id, redirect_uri, callback) {
