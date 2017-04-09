@@ -1,3 +1,4 @@
+import "babel-polyfill"
 
 var version = "v0.3.1"
 console.log(version);

@@ -1,5 +1,7 @@
 "use strict";
 
+require("babel-polyfill");
+
 var version = "v0.3.1";
 console.log(version);
 document.getElementById("version").innerHTML = version;
