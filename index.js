@@ -1,6 +1,6 @@
 import "babel-polyfill"
 
-var version = "v0.3.1"
+var version = "v0.3.2"
 console.log(version);
 document.getElementById("version").innerHTML = version
 
