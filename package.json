@@ -1,0 +1,12 @@
+{
+  "name": "music-info",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dev-dependencies": {
+    "express": "^4.15.2"
+  }
+}
