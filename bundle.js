@@ -1,6 +1,6 @@
 "use strict";
 
-var version = "v0.2.9";
+var version = "v0.3.0";
 console.log(version);
 document.getElementById("version").innerHTML = version;
 
@@ -43,7 +43,7 @@ if (location.hash != "") {
 function ready() {
     console.log("ready");
     document.getElementById("input").style.visibility = "visible";
-    document.getElementById("login").style.visibility = "hidden";
+    document.getElementById("loginContainer").innerHTML = "";
 
     // Set generic request headers
     var headers = new Headers();
@@ -83,17 +83,17 @@ function ready() {
             return blob.json();
         }).then(function (data) {
             handlePlaylistResponse(data);
-            recursiveGet(data, playlistsEndpoint, GETRequestConfig, 1, 20, handlePlaylistResponse, maxRequests = null, callback = function callback() {
+            recursiveGet(data, playlistsEndpoint, GETRequestConfig, 1, 20, handlePlaylistResponse, null, function () {
                 // Got playlists - enable source select
                 document.getElementById("sourceSelect").disabled = false;
                 document.getElementById("confirmSource").disabled = false;
 
                 // Click listener
                 document.getElementById("confirmSource").addEventListener("click", function () {
-                    document.getElementById("statusContainer").style.visibility = "visible";
                     var value = document.getElementById("sourceSelect").value;
                     var endpoint = "";
                     if (value != "playlistURLOption") {
+                        document.getElementById("statusContainer").style.visibility = "visible";
                         value = JSON.parse(document.getElementById("sourceSelect").value);
                         endpoint = value.href + "/tracks";
                         chartTitle = "Top genres for " + decodeURIComponent(value.title) + " (" + value.owner + ") on " + printDate();
@@ -106,7 +106,9 @@ function ready() {
                         endpoint = parsePlaylistInput(document.getElementById("playlistURL").value);
                         if (endpoint === "__!__Invalid link__!_#") {
                             alert("Invalid playlist link");
+                            invalidPlaylistURL = true;
                         } else if (currentPlaylist != endpoint) {
+                            document.getElementById("statusContainer").style.visibility = "visible";
                             fetch(endpoint, GETRequestConfig).then(function (blob) {
                                 return blob.json();
                             }).then(function (data) {
@@ -120,10 +122,9 @@ function ready() {
                 document.getElementById("sourceSelect").addEventListener("change", function () {
                     // add listener to check if "Playlist URL" option is selected
                     // enable/disable text field
-                    value = document.getElementById("sourceSelect").value;
+                    var value = document.getElementById("sourceSelect").value;
                     if (value === "playlistURLOption") {
-
-                        document.getElementById("playlistURLContainer").innerHTML = "\n                        <input id=\"playlistURL\" type=\"text\" style=\"margin-top:10px;width:300px\" placeholder=\"Playlist link/ID\">\n                        ";
+                        document.getElementById("playlistURLContainer").innerHTML = "\n                        <input id=\"playlistURL\" type=\"text\" style=\"margin-top:10px;width:300px\" placeholder=\"Playlist link\">\n                        ";
                     } else {
                         document.getElementById("playlistURLContainer").innerHTML = "";
                     }
@@ -138,10 +139,12 @@ function parsePlaylistInput(input) {
     console.log(result);
     var i = result.length - 1;
     var tmp = result[i];
+    var username = result[result.indexOf("user") + 1];
+
     for (var i = result.length - 1; i > -1; i--) {
         tmp = result[i];
         if (tmp.length === 22) {
-            return "https://api.spotify.com/v1/users/" + spotify_client_id + "/playlists/" + tmp;
+            return "https://api.spotify.com/v1/users/" + username + "/playlists/" + tmp;
         }
     }
     return "__!__Invalid link__!_#";
@@ -239,10 +242,10 @@ function getSongTags() {
         fetch(endpoint + params + appendix).then(function (blob) {
             return blob.json();
         }).then(function (data) {
-            tags = data.track.toptags.tag;
+            var tags = data.track.toptags.tag;
             songsWithTags++;
             tags.map(function (tag) {
-                item = tag.name;
+                var item = tag.name;
                 if (lastFMProcessIndex < songs.length) {
                     songTags++;
                     if (genreDemographics[item]) {
