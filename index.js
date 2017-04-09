@@ -1,5 +1,5 @@
 
-var version = "v0.3.0"
+var version = "v0.3.1"
 console.log(version);
 document.getElementById("version").innerHTML = version
 
@@ -45,9 +45,13 @@ function ready() {
     document.getElementById("loginContainer").innerHTML = ""
 
     // Set generic request headers
-    var headers = new Headers()
-    headers.append('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')
-    headers.append('Authorization', "Bearer " + access_token)
+    // var headers = new Headers()
+    var headers = {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        'Authorization': "Bearer " + access_token
+    }
+    // headers.append('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')
+    // headers.append('Authorization', "Bearer " + access_token)
 
     GETRequestConfig = {
         method: 'GET',
