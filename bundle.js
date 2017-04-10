@@ -1,6 +1,6 @@
 "use strict";
 
-var version = "v0.3.3";
+var version = "v0.3.4";
 console.log(version);
 document.getElementById("version").innerHTML = version;
 
