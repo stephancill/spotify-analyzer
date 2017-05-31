@@ -196,7 +196,12 @@ function populateSongs(endpoint) {
         return blob.json();
     }).then(function (data) {
         data.items.map(function (item) {
-            songs.push({ title: item.track.name, artist: item.track.artists[0].name });
+            console.log(item);
+            if (item.track != null) {
+                songs.push({ title: item.track.name, artist: item.track.artists[0].name });
+            } else {
+                songs.push({ title: item.name, artist: item.artists[0].name });
+            }
         });
         getTagsForSongs();
         updateSongCount(data.items);
