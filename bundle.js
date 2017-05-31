@@ -1,13 +1,13 @@
 "use strict";
 
-var version = "v0.3.4";
+var version = "v0.4.0";
 console.log(version);
 document.getElementById("version").innerHTML = version;
 
 var spotify_client_id = '04ec33bc2f0544b4b06c9c78c251ff07'; // Your client id (meh)
 var redirect_uri = location.origin + location.pathname;
 
-var auth_url = "https://accounts.spotify.com/authorize?client_id=" + spotify_client_id + "&response_type=token&redirect_uri=" + encodeURIComponent(redirect_uri) + "&scope=user-library-read%20user-read-private%20user-read-email";
+var auth_url = "https://accounts.spotify.com/authorize?client_id=" + spotify_client_id + "&response_type=token&redirect_uri=" + encodeURIComponent(redirect_uri) + "&scope=user-library-read%20user-read-private%20user-read-email%20user-top-read";
 
 var access_token = null;
 var refresh_token = null;
@@ -69,6 +69,7 @@ function ready() {
     }).then(function (data) {
         spotify_client_id = data.id;
         document.getElementById("userLibrary").value = JSON.stringify({ href: "https://api.spotify.com/v1/me", title: "saved tracks", owner: spotify_client_id });
+        document.getElementById("userTopSongs").value = JSON.stringify({ href: "https://api.spotify.com/v1/me/top", title: "top tracks", owner: spotify_client_id });
         getPlaylists();
     });
 

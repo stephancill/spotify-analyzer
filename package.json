@@ -4,7 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "start": "npm build; node server.js",
+    "dev": "yarn build; node server.js",
     "build": "babel index.js -o bundle.js"
   },
   "devDependencies": {
